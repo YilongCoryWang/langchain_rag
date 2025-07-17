@@ -32,7 +32,14 @@ langchain_rag/
 
 ## 🚀 Fast start
 
-### 1. install dependencies
+### 1. Create environment
+
+```bash
+python -m venv venv
+source ./venv/bin/activate
+```
+
+### 2. install dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -40,13 +47,13 @@ mv .env.template .env
 # edit .env and fill in your LLM's api key and base url
 ```
 
-### 2. Start service
+### 3. Start service
 
 ```bash
 uvicorn main:app --reload
 ```
 
-### 3. upload
+### 4. upload
 
 Upload Documents and Ask Questions
 Use the /upload-pdf/ endpoint to upload a PDF file with field name 'file', then use the /query/ endpoint to ask questions. The system will generate answers based on the document content. For example:
