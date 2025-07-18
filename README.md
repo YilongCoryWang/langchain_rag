@@ -9,6 +9,7 @@ A Retrieval-Augmented Generation (RAG) question-answering system built with Lang
 - 🔍 Integrated with FAISS for efficient document retrieval
 - 🤖 Compatible with OpenAI / DeepSeek and other LLM providers
 - 🌐 FastAPI backend for easy deployment and integration
+- 📊 Integrated with LangSmith for tracing and debugging of RAG pipelines
 
 ---
 
