@@ -10,6 +10,7 @@ A Retrieval-Augmented Generation (RAG) question-answering system built with Lang
 - 🤖 Compatible with OpenAI / DeepSeek and other LLM providers
 - 🌐 FastAPI backend for easy deployment and integration
 - 📊 Integrated with LangSmith for tracing and debugging of RAG pipelines
+- 📥 Uses [rlm/rag-prompt](https://smith.langchain.com/hub/rlm/rag-prompt) from LangChain Hub as the RAG prompt template, instead of manually crafting prompts from raw messages
 
 ---
 
@@ -23,6 +24,8 @@ langchain_rag/
 │ ├── loader.py # read and process pdf file
 │ ├── embedder.py # Embedding model and vector store integration
 │ ├── config.py # Load project environment variables
+│ ├── ragbot.py # rag class definition
+│ ├── utils.py # retriever's documents operations
 │
 ├── .env # Project environment variables
 ├── requirements.txt

@@ -3,8 +3,8 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from app.ragbot import Ragbot
 from app.retriever import get_retriever
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain import hub
 
 
 # global rag instance
@@ -24,22 +24,12 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-@app.get("/")
-def hello():
-    return {"message": "RAG backend is running."}
-
-
 @app.post("/upload-pdf/")
 async def upload_pdf(file: UploadFile = File(...)):
     try:
         contents = await file.read()
         retriever = get_retriever(contents)
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", "You are a helpful assistant."),
-                ("user", "{context}\n\nQuestion: {question}"),
-            ]
-        )
+        prompt = hub.pull("rlm/rag-prompt")
 
         # Chain in LCEL style
         global rag_bot
