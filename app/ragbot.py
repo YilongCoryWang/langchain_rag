@@ -1,8 +1,13 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import Runnable
-from langchain.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
 from app.config import LLM_API_KEY, LLM_BASE_URL
+from langchain_core.prompts.chat import (
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+    MessagesPlaceholder,
+)
+from langchain.chains import LLMChain
+from langchain.memory import ConversationBufferMemory
 
 
 class Ragbot:
@@ -18,29 +23,42 @@ class Ragbot:
             openai_api_base=LLM_BASE_URL,
         )
 
-        prompt = ChatPromptTemplate.from_messages(
+        prompt = ChatPromptTemplate(
             [
-                (
-                    "system",
-                    "You are a helpful assistant. Be precise, if you don't know, just say it.",
+                MessagesPlaceholder(variable_name="chat_history"),
+                HumanMessagePromptTemplate.from_template(
+                    "You are a helpful assistant. User's question: {question}"
                 ),
-                ("user", "Question: {question}"),
             ]
         )
 
-        self.qa_chain = (
-            {
-                "question": RunnablePassthrough(),
-            }
-            | prompt
-            | self.llm
+        memory = ConversationBufferMemory(
+            memory_key="chat_history", return_messages=True, input_key="question"
         )
-        pass
 
-    def run(self, question):
+        self.qa_chain = LLMChain(
+            llm=self.llm,
+            prompt=prompt,
+            memory=memory,
+        )
+
+    def run(self, question, session_id="default"):
         if self.qa_chain == None:
             print("RAG qa chain is not initialized.")
             return ""
         else:
-            response = self.qa_chain.invoke(question)
-            return response
+            response = self.qa_chain.invoke(
+                {"question": question},
+                config={"configurable": {"session_id": session_id}},
+            )
+
+            if isinstance(response, str):
+                answer = response
+            elif hasattr(response, "content"):  # 如果是 AIMessage 或类似对象
+                answer = response.content
+            elif isinstance(response, dict):  # 如果是字典
+                answer = response.get("text", "No content found")
+            else:
+                answer = str(response)
+
+            return answer

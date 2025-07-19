@@ -3,9 +3,10 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from app.ragbot import Ragbot
 from app.retriever import get_retriever
-from langchain_core.runnables import RunnablePassthrough
 from langchain import hub
-
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.chat_history import BaseChatMessageHistory
+from app.in_memory import InMemoryHistory
 
 # global rag instance
 rag_bot = None
@@ -24,6 +25,20 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
+from langchain_community.chat_message_histories import ChatMessageHistory
+
+
+# Here we use a global variable to store the chat message history.
+# This will make it easier to inspect it to see the underlying results.
+store = {}
+
+
+def get_by_session_id(session_id: str) -> BaseChatMessageHistory:
+    if session_id not in store:
+        store[session_id] = InMemoryHistory()
+    return store[session_id]
+
+
 @app.post("/upload-pdf/")
 async def upload_pdf(file: UploadFile = File(...)):
     try:
@@ -33,13 +48,22 @@ async def upload_pdf(file: UploadFile = File(...)):
 
         # Chain in LCEL style
         global rag_bot
-        rag_bot.qa_chain = (
+        qa_chain = (
             {
-                "context": retriever,
-                "question": RunnablePassthrough(),
+                # "context": retriever,
+                # "question": RunnablePassthrough(),
+                "question": lambda x: x["question"],
+                "context": lambda x: retriever.invoke(x["question"]),
             }
             | prompt
             | rag_bot.llm
+        )
+
+        rag_bot.qa_chain = RunnableWithMessageHistory(
+            qa_chain,
+            get_session_history=get_by_session_id,
+            input_messages_key="question",
+            history_messages_key="chat_history",
         )
 
         return {"msg": "PDF uploaded and qa chain created"}
@@ -49,17 +73,8 @@ async def upload_pdf(file: UploadFile = File(...)):
 
 
 @app.get("/query/")
-async def query_pdf(question: str):
+async def query(question: str):
     global rag_bot
-    response = rag_bot.run(question)
-    if isinstance(response, str):
-        answer = response
-    elif hasattr(response, "content"):  # 如果是 AIMessage 或类似对象
-        answer = response.content
-    elif isinstance(response, dict):  # 如果是字典
-        answer = response.get("content", "No content found")
-    else:
-        answer = str(response)
+    answer = rag_bot.run(question)
 
-    print("Answer:", answer)
     return {"answer": answer}
