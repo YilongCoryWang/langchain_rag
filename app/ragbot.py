@@ -9,6 +9,8 @@ from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers import EnsembleRetriever
+from langchain.retrievers import ContextualCompressionRetriever
+from langchain.retrievers.document_compressors import FlashrankRerank
 from app.utils import extract_text_from_pdf, split_docs
 from langchain_huggingface import HuggingFaceEmbeddings
 
@@ -34,6 +36,7 @@ class Ragbot:
     retriever = None
     bm25_retriever = None
     ensemble_retriever = None
+    compression_retriever = None
     qa_chain: Runnable = None
 
     def __init__(self):
@@ -70,8 +73,14 @@ class Ragbot:
             weights=[0.4, 0.6]  # BM25: 40%, Vector: 60%
         )
         
-        # Use ensemble retriever as the main retriever
-        self.retriever = self.ensemble_retriever
+        # Wrap with Flashrank Rerank for semantic re-ranking
+        compressor = FlashrankRerank()
+        self.compression_retriever = ContextualCompressionRetriever(
+            base_compressor=compressor, base_retriever=self.ensemble_retriever
+        )
+        
+        # Use compression retriever as the main retriever
+        self.retriever = self.compression_retriever
 
     def add_documents(self, contents: bytes = b""):
         raw_text = extract_text_from_pdf(contents)
@@ -91,7 +100,13 @@ class Ragbot:
                 retrievers=[self.bm25_retriever, vector_retriever],
                 weights=[0.4, 0.6]
             )
-            self.retriever = self.ensemble_retriever
+            
+            # Recreate compression retriever with updated ensemble retriever
+            compressor = FlashrankRerank()
+            self.compression_retriever = ContextualCompressionRetriever(
+                base_compressor=compressor, base_retriever=self.ensemble_retriever
+            )
+            self.retriever = self.compression_retriever
 
     # Chain in LCEL style
     def init_qa_chain(self):

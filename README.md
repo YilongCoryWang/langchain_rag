@@ -8,6 +8,7 @@ A Retrieval-Augmented Generation (RAG) question-answering system built with Lang
 - 📄 Supports PDF document upload and content embedding
 - 🔍 Integrated with FAISS for efficient document retrieval
 - 🎯 **Multi-Channel Retrieval**: Combines BM25 (keyword search) + FAISS (semantic search) via EnsembleRetriever for improved recall accuracy
+- 🏆 **Rerank with Flashrank**: Deep semantic re-ranking of retrieved documents using cross-encoder model for better relevance
 - 🤖 Compatible with OpenAI / DeepSeek and other LLM providers
 - 🌐 FastAPI backend for easy deployment and integration
 - 📊 Integrated with LangSmith for tracing and debugging of RAG pipelines
@@ -22,7 +23,7 @@ langchain_rag/
 │
 ├── app/
 │ ├── main.py # FastAPI entry point
-│ ├── ragbot.py # RAG class with Multi-Channel Retrieval (BM25 + FAISS)
+│ ├── ragbot.py # RAG class with Multi-Channel Retrieval (BM25 + FAISS) + Rerank
 │ ├── config.py # Load project environment variables
 │ ├── utils.py # PDF processing and document splitting
 │ ├── in_memory.py # In-memory chat history implementation
@@ -67,10 +68,14 @@ http://localhost:8000/query?question=hi
 
 LangChain v0.3+
 
-**Multi-Channel Retrieval**:
-- BM25 Retriever (keyword-based search)
-- FAISS vector store (semantic search)
-- EnsembleRetriever (combines BM25 + FAISS with weighted scoring)
+**Retrieval Pipeline**:
+1. **Multi-Channel Retrieval**:
+   - BM25 Retriever (keyword-based search)
+   - FAISS vector store (semantic search)
+   - EnsembleRetriever (combines BM25 + FAISS with weighted scoring)
+2. **Rerank**:
+   - FlashrankRerank (cross-encoder based semantic re-ranking)
+   - ContextualCompressionRetriever (wraps reranker with base retriever)
 
 Sentence-Transformers embedding models
 
