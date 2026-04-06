@@ -7,6 +7,8 @@ from langchain_core.chat_history import BaseChatMessageHistory
 from app.in_memory import InMemoryHistory
 from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
+from langchain_community.retrievers import BM25Retriever
+from langchain.retrievers import EnsembleRetriever
 from app.utils import extract_text_from_pdf, split_docs
 from langchain_huggingface import HuggingFaceEmbeddings
 
@@ -30,6 +32,8 @@ class Ragbot:
     llm = None
     vector_store = None
     retriever = None
+    bm25_retriever = None
+    ensemble_retriever = None
     qa_chain: Runnable = None
 
     def __init__(self):
@@ -49,15 +53,45 @@ class Ragbot:
         embedding_model = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
+        
+        # Initialize Vector Store (FAISS) - Semantic Search
         self.vector_store = FAISS.from_documents(
             doc_placeholder, embedding=embedding_model
         )
-        self.retriever = self.vector_store.as_retriever()
+        vector_retriever = self.vector_store.as_retriever(search_kwargs={"k": 3})
+        
+        # Initialize BM25 Retriever - Keyword Search
+        self.bm25_retriever = BM25Retriever.from_documents(doc_placeholder)
+        self.bm25_retriever.k = 3
+        
+        # Create Ensemble Retriever (Multi-Channel Retrieval)
+        self.ensemble_retriever = EnsembleRetriever(
+            retrievers=[self.bm25_retriever, vector_retriever],
+            weights=[0.4, 0.6]  # BM25: 40%, Vector: 60%
+        )
+        
+        # Use ensemble retriever as the main retriever
+        self.retriever = self.ensemble_retriever
 
     def add_documents(self, contents: bytes = b""):
         raw_text = extract_text_from_pdf(contents)
         splitted_docs = split_docs(raw_text)
         self.vector_store.add_documents(splitted_docs)
+        
+        # Update BM25 retriever with new documents
+        if len(splitted_docs) > 0:
+            existing_docs = self.bm25_retriever.docs
+            all_docs = existing_docs + splitted_docs
+            self.bm25_retriever = BM25Retriever.from_documents(all_docs)
+            self.bm25_retriever.k = 3
+            
+            # Recreate ensemble retriever with updated BM25
+            vector_retriever = self.vector_store.as_retriever(search_kwargs={"k": 3})
+            self.ensemble_retriever = EnsembleRetriever(
+                retrievers=[self.bm25_retriever, vector_retriever],
+                weights=[0.4, 0.6]
+            )
+            self.retriever = self.ensemble_retriever
 
     # Chain in LCEL style
     def init_qa_chain(self):

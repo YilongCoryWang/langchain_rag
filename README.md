@@ -7,6 +7,7 @@ A Retrieval-Augmented Generation (RAG) question-answering system built with Lang
 - ✅ Built on LangChain v0.3 architecture
 - 📄 Supports PDF document upload and content embedding
 - 🔍 Integrated with FAISS for efficient document retrieval
+- 🎯 **Multi-Channel Retrieval**: Combines BM25 (keyword search) + FAISS (semantic search) via EnsembleRetriever for improved recall accuracy
 - 🤖 Compatible with OpenAI / DeepSeek and other LLM providers
 - 🌐 FastAPI backend for easy deployment and integration
 - 📊 Integrated with LangSmith for tracing and debugging of RAG pipelines
@@ -21,11 +22,10 @@ langchain_rag/
 │
 ├── app/
 │ ├── main.py # FastAPI entry point
-│ ├── loader.py # read and process pdf file
-│ ├── embedder.py # Embedding model and vector store integration
+│ ├── ragbot.py # RAG class with Multi-Channel Retrieval (BM25 + FAISS)
 │ ├── config.py # Load project environment variables
-│ ├── ragbot.py # rag class definition
-│ ├── utils.py # retriever's documents operations
+│ ├── utils.py # PDF processing and document splitting
+│ ├── in_memory.py # In-memory chat history implementation
 │
 ├── .env # Project environment variables
 ├── requirements.txt
@@ -54,7 +54,7 @@ mv .env.template .env
 ### 3. Start service
 
 ```bash
-uvicorn main:app --reload
+uvicorn app.main:app --reload
 ```
 
 ### 4. upload
@@ -67,7 +67,10 @@ http://localhost:8000/query?question=hi
 
 LangChain v0.3+
 
-FAISS vector store
+**Multi-Channel Retrieval**:
+- BM25 Retriever (keyword-based search)
+- FAISS vector store (semantic search)
+- EnsembleRetriever (combines BM25 + FAISS with weighted scoring)
 
 Sentence-Transformers embedding models
 
