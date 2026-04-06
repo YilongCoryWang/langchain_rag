@@ -1,5 +1,8 @@
+from typing import Literal
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import Runnable
+from langchain_core.pydantic_v1 import BaseModel, Field
+from langchain_core.prompts import ChatPromptTemplate
 from app.config import LLM_API_KEY, LLM_BASE_URL
 from langchain import hub
 from langchain_core.runnables.history import RunnableWithMessageHistory
@@ -29,6 +32,14 @@ def get_by_session_id(session_id: str) -> BaseChatMessageHistory:
     return store[session_id]
 
 
+class IntentSchema(BaseModel):
+    """Identify user's real intent"""
+    intent: Literal["knowledge_base", "chitchat"] = Field(
+        description="knowledge_base: questions about document content, technical knowledge that require retrieval to answer; "
+                    "chitchat: greetings, casual chat or meaningless conversation."
+    )
+
+
 class Ragbot:
     name: str
     llm = None
@@ -38,6 +49,7 @@ class Ragbot:
     ensemble_retriever = None
     compression_retriever = None
     qa_chain: Runnable = None
+    intent_chain = None
 
     def __init__(self):
         self.llm = ChatOpenAI(
@@ -48,6 +60,19 @@ class Ragbot:
         )
         self.init_documents()
         self.init_qa_chain()
+        self.init_intent_chain()
+
+    def init_intent_chain(self):
+        structured_llm = self.llm.with_structured_output(IntentSchema)
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", "You are an intent detection expert. Analyze the user input and classify it."),
+            ("human", "{input}")
+        ])
+        self.intent_chain = prompt | structured_llm
+
+    def detect_intent(self, question: str) -> str:
+        result = self.intent_chain.invoke({"input": question})
+        return result.intent
 
     def init_documents(self):
         doc_placeholder = [
@@ -131,19 +156,30 @@ class Ragbot:
         if self.qa_chain == None:
             print("RAG qa chain is not initialized.")
             return ""
+        
+        intent = self.detect_intent(question)
+        
+        if intent == "chitchat":
+            chitchat_prompt = ChatPromptTemplate.from_messages([
+                ("system", "你是一个友好的助手。请简洁地回复用户的问候或闲聊。"),
+                ("human", "{input}")
+            ])
+            chitchat_chain = chitchat_prompt | self.llm
+            response = chitchat_chain.invoke({"input": question})
+            return response.content if hasattr(response, "content") else str(response)
+        
+        response = self.qa_chain.invoke(
+            {"question": question},
+            config={"configurable": {"session_id": session_id}},
+        )
+
+        if isinstance(response, str):
+            answer = response
+        elif hasattr(response, "content"):
+            answer = response.content
+        elif isinstance(response, dict):
+            answer = response.get("text", "No content found")
         else:
-            response = self.qa_chain.invoke(
-                {"question": question},
-                config={"configurable": {"session_id": session_id}},
-            )
+            answer = str(response)
 
-            if isinstance(response, str):
-                answer = response
-            elif hasattr(response, "content"):  # 如果是 AIMessage 或类似对象
-                answer = response.content
-            elif isinstance(response, dict):  # 如果是字典
-                answer = response.get("text", "No content found")
-            else:
-                answer = str(response)
-
-            return answer
+        return answer

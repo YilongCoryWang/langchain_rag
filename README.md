@@ -6,6 +6,7 @@ A Retrieval-Augmented Generation (RAG) question-answering system built with Lang
 
 - ✅ Built on LangChain v0.3 architecture
 - 📄 Supports PDF document upload and content embedding
+- 🧠 **Intent Detection**: LLM-based intent classification to route questions to appropriate handlers (knowledge_base vs chitchat)
 - 🔍 Integrated with FAISS for efficient document retrieval
 - 🎯 **Multi-Channel Retrieval**: Combines BM25 (keyword search) + FAISS (semantic search) via EnsembleRetriever for improved recall accuracy
 - 🏆 **Rerank with Flashrank**: Deep semantic re-ranking of retrieved documents using cross-encoder model for better relevance
@@ -68,12 +69,13 @@ http://localhost:8000/query?question=hi
 
 LangChain v0.3+
 
-**Retrieval Pipeline**:
-1. **Multi-Channel Retrieval**:
+**Query Processing Pipeline**:
+1. **Intent Detection**: LLM-based classification (knowledge_base / chitchat)
+2. **Multi-Channel Retrieval** (for knowledge_base):
    - BM25 Retriever (keyword-based search)
    - FAISS vector store (semantic search)
    - EnsembleRetriever (combines BM25 + FAISS with weighted scoring)
-2. **Rerank**:
+3. **Rerank**:
    - FlashrankRerank (cross-encoder based semantic re-ranking)
    - ContextualCompressionRetriever (wraps reranker with base retriever)
 
